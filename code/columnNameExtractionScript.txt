@@ -1,0 +1,1 @@
+console.log(JSON.stringify([...document.getElementById('shared-legend').childNodes[1].childNodes[1].childNodes[3].childNodes].filter((n,i) => i%2 === 1).filter(row => row.childNodes[7].classList.contains('bg-success')).map(row => row.childNodes[1].innerText)))
