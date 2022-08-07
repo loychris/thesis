@@ -46,7 +46,7 @@ def removeIncompleteLines():
         'AmountOfPreviousLoansBeforeLoan',
         'NoOfPreviousLoansBeforeLoan'
     ]
-
+    
     # get the numbers of rows that have empty cells in the sus columns
     incompleteRows = []
     for col in susColumns:
@@ -55,13 +55,32 @@ def removeIncompleteLines():
     # remove duplicates
     incompleteRows = list(dict.fromkeys(incompleteRows))
     
-    print(incompleteRows)
-    print('\n', len(incompleteRows), 'incomplete lines. if equal to 50 data is missing in the same lines across different columns.')
-    
+    # remove the incomplete lines from the dataset
     df_clean = df_clean.drop(incompleteRows)
-    # df_clean = df_clean.drop(df_clean[df_clean.index in incompleteRows].index)
 
-
+def getReducedDataset():
+    global df_clean 
+    inputCols = [
+        # APPLICATION
+        'ApplicationSignedHour', 'ApplicationSignedWeekday', 'VerificationType', 
+        # LOAN
+        'AppliedAmount',
+        # DEMOGRAPHIC
+        'LanguageCode','Age','Gender','Country','LoanDuration', 'MonthlyPayment',  'UseOfLoan', 'Education', 
+        'MaritalStatus', 'NrOfDependants', 'EmploymentStatus', 'EmploymentDurationCurrentEmployer', 'WorkExperience', 
+        'OccupationArea', 'HomeOwnershipType', 
+        # INCOME 
+        'IncomeFromPrincipalEmployer','IncomeFromPension', 'IncomeFromFamilyAllowance', 'IncomeFromSocialWelfare', 
+        'IncomeFromLeavePay', 'IncomeFromChildSupport', 'IncomeOther', 'IncomeTotal', 
+        # LIABILITIES
+        'ExistingLiabilities', 'LiabilitiesTotal', 'RefinanceLiabilities', 
+        'DebtToIncome', 'FreeCash', 'MonthlyPaymentDay', 
+        # PREV LOANS
+        'NewCreditCustomer', 'NoOfPreviousLoansBeforeLoan', 'AmountOfPreviousLoansBeforeLoan', 
+        'PreviousRepaymentsBeforeLoan', 'PreviousEarlyRepaymentsBefoleLoan', 'PreviousEarlyRepaymentsCountBeforeLoan',
+    ]
+    df_reduced = df_clean.copy(deep=True)
+    return df_reduced[inputCols]
 
 
 
@@ -70,9 +89,12 @@ def removeIncompleteLines():
 
 print(df_clean.shape)
 
+# clean up data 
 addTargetColumn()
 removeOngoingLoans()
-
 removeIncompleteLines()
 
-print(df_clean.shape)
+# model preparation 
+df_reduced = getReducedDataset()
+
+print(df_reduced.shape)
