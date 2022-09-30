@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import lightgbm as lgb
+import math
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
@@ -16,7 +17,10 @@ pd.set_option('display.max_rows', None)  # or 1000
 df = pd.read_csv('LoanData.csv', low_memory=False)
 df_clean = df.copy(deep=True)
 
+### CLEAN DATA ##########################################
+
 def addTargetColumn(): 
+    print('...Adding TARGET column (default: 1, in time: 0)')
     TARGET = []
     for row in df['Status']:
         if row == 'Late' : TARGET.append(1)
@@ -24,16 +28,13 @@ def addTargetColumn():
     
     df['TARGET'] = TARGET
     
-    # if boolean should be prefered
-    # df['TARGET'] = df.Status == 'Late'   
-
-    
 def removeOngoingLoans():
+    print('...removing Loans that are still active')
     global df_clean
     df_clean = df[df['Status'] != 'Current']
     
-    
 def removeIncompleteLines():
+    print('...Removing incomplete lines')
     global df_clean
     susColumns = [
         'Education',
@@ -57,8 +58,9 @@ def removeIncompleteLines():
     
     # remove the incomplete lines from the dataset
     df_clean = df_clean.drop(incompleteRows)
-
+    
 def getReducedDataset():
+    print('...Reducing columns to relevant inputs')
     global df_clean 
     inputCols = [
         # APPLICATION
@@ -78,14 +80,49 @@ def getReducedDataset():
         # PREV LOANS
         'NewCreditCustomer', 'NoOfPreviousLoansBeforeLoan', 'AmountOfPreviousLoansBeforeLoan', 
         'PreviousRepaymentsBeforeLoan', 'PreviousEarlyRepaymentsBefoleLoan', 'PreviousEarlyRepaymentsCountBeforeLoan',
+
+        'TARGET'
     ]
     df_reduced = df_clean.copy(deep=True)
     return df_reduced[inputCols]
 
 
+### PLOT & PRINT STUFF ##################################
 
+def plotAgeDistribution():
+    print('...Plotting age distribution')
+
+    global df_clean
+    plt.figure(figsize=(10,8))
+    plt.title('Age Distribution')
+    plt.xlabel('Age')
+    sns.kdeplot(df_clean[df_clean['TARGET']==1]['Age'], label='Target=1')
+    sns.kdeplot(df_clean[df_clean['TARGET']==0]['Age'], label='Target=0')
+    plt.grid()
+    plt.show()
     
-# Excecute code
+def printDtypes(df):
+    print(df.dtypes)
+
+def printValueDistribution(df, col):
+    print()
+    print(df[col].fillna('empty').value_counts())
+    
+def plotStuff(df): 
+    printValueDistribution(df, 'Country')
+    printValueDistribution(df, 'NrOfDependants')
+    printValueDistribution(df, 'EmploymentDurationCurrentEmployer')
+
+
+### FEATURE ENGINEERING #################################
+
+def prepareNrOfDependants(df): 
+    df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
+    printValueDistribution(df, 'NrOfDependants')
+
+
+
+### EXECUTE CODE ########################################
 
 print(df_clean.shape)
 
@@ -93,8 +130,5 @@ print(df_clean.shape)
 addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
-
-# model preparation 
 df_reduced = getReducedDataset()
-
-print(df_reduced.shape)
+prepareNrOfDependants(df_reduced)
