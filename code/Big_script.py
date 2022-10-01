@@ -89,15 +89,20 @@ def getReducedDataset():
 
 ### PLOT & PRINT STUFF ##################################
 
-def plotAgeDistribution():
+def plotTargetDistributionForCol(df, col): 
+    print(pd.DataFrame({
+        "Late": df[df['TARGET']==1][col].value_counts(),
+        "On Time": df[df['TARGET']==0][col].value_counts()
+    }))
+
+def plotAgeDistribution(df):
     print('...Plotting age distribution')
 
-    global df_clean
     plt.figure(figsize=(10,8))
     plt.title('Age Distribution')
     plt.xlabel('Age')
-    sns.kdeplot(df_clean[df_clean['TARGET']==1]['Age'], label='Target=1')
-    sns.kdeplot(df_clean[df_clean['TARGET']==0]['Age'], label='Target=0')
+    sns.kdeplot(df[df['TARGET']==1]['Age'], label='Target=1')
+    sns.kdeplot(df[df['TARGET']==0]['Age'], label='Target=0')
     plt.grid()
     plt.show()
     
@@ -117,18 +122,26 @@ def plotStuff(df):
 ### FEATURE ENGINEERING #################################
 
 def prepareNrOfDependants(df): 
+    df['NrOfDependants'] = df['NrOfDependants'].fillna('empty')
     df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
     printValueDistribution(df, 'NrOfDependants')
 
+def prepareCountry(df): 
+    labelencoder = LabelEncoder()
+    df['Country'] = labelencoder.fit_transform(df['Country'])
 
 
 ### EXECUTE CODE ########################################
 
 print(df_clean.shape)
 
-# clean up data 
 addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
+
 df_reduced = getReducedDataset()
 prepareNrOfDependants(df_reduced)
+prepareCountry(df_reduced)
+plotTargetDistributionForCol(df_reduced, 'Country')
+
+printDtypes(df_reduced)
