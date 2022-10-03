@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import lightgbm as lgb
 import math
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OneHotEncoder 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
 
@@ -126,9 +126,27 @@ def prepareNrOfDependants(df):
     df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
     printValueDistribution(df, 'NrOfDependants')
 
-def prepareCountry(df): 
+def labelEncodeCountry(df): 
+    print('...labelencoding Country column')
     labelencoder = LabelEncoder()
     df['Country'] = labelencoder.fit_transform(df['Country'])
+
+def oheCountry(df): 
+    print('...OneHotEncoding Country column')
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['Country']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    print(feature_labels)
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    print(df.shape)
+    df_encoded = pd.concat([df, features], axis=1)
+    print(df_encoded.shape)
+    return df_encoded
+
+
+    
+
 
 
 ### EXECUTE CODE ########################################
@@ -141,7 +159,11 @@ removeIncompleteLines()
 
 df_reduced = getReducedDataset()
 prepareNrOfDependants(df_reduced)
-prepareCountry(df_reduced)
+# labelEncodeCountry(df_reduced)
+df_reduced = oheCountry(df_reduced)
+print(df_reduced.shape)
+
+print(df_reduced.columns)
 plotTargetDistributionForCol(df_reduced, 'Country')
 
-printDtypes(df_reduced)
+df_reduced.head(5000).to_csv('LoanData_reduced.csv')
