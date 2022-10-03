@@ -131,17 +131,19 @@ def labelEncodeCountry(df):
     labelencoder = LabelEncoder()
     df['Country'] = labelencoder.fit_transform(df['Country'])
 
-def oheCountry(df): 
+def oheCountry(df_in): 
     print('...OneHotEncoding Country column')
     ohe = OneHotEncoder()
-    feature_array = ohe.fit_transform(df[['Country']]).toarray()
+    feature_array = ohe.fit_transform(df_in[['Country']]).toarray()
     feature_labels = ohe.categories_
     feature_labels = np.array(feature_labels).ravel()
-    print(feature_labels)
     features = pd.DataFrame(feature_array, columns=feature_labels)
-    print(df.shape)
-    df_encoded = pd.concat([df, features], axis=1)
-    print(df_encoded.shape)
+    print('DF IN:    ', df_in.shape)
+    print('FEATURES: ', features.shape)
+    df_encoded = pd.concat([df_in.reset_index(drop=True), features.reset_index(drop=True)], axis=1, ignore_index=True)
+    print('CONCATED: ', df_encoded.shape)
+
+    df_encoded.head(5000).to_csv('LoanData_reduced.csv')
     return df_encoded
 
 
@@ -158,12 +160,8 @@ removeOngoingLoans()
 removeIncompleteLines()
 
 df_reduced = getReducedDataset()
-prepareNrOfDependants(df_reduced)
+# prepareNrOfDependants(df_reduced)
 # labelEncodeCountry(df_reduced)
 df_reduced = oheCountry(df_reduced)
-print(df_reduced.shape)
+# plotTargetDistributionForCol(df_reduced, 'Country')
 
-print(df_reduced.columns)
-plotTargetDistributionForCol(df_reduced, 'Country')
-
-df_reduced.head(5000).to_csv('LoanData_reduced.csv')
