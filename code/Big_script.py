@@ -122,8 +122,16 @@ def plotStuff(df):
 ### FEATURE ENGINEERING #################################
 
 def prepareNrOfDependants(df): 
+    print('...Adding NrDependantsGiven column (default: 1, in time: 0)')
     df['NrOfDependants'] = df['NrOfDependants'].fillna('empty')
     df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
+    NrDependantsGiven = []
+    for row in df['NrOfDependants']:
+        if row == 'empty' : NrDependantsGiven.append(1)
+        else: NrDependantsGiven.append(0)
+    df['NrDependantsGiven'] = NrDependantsGiven
+    df['NrOfDependants'] = df['NrOfDependants'].replace('empty', '0')
+    df['NrOfDependants'] = df['NrOfDependants'].astype(int)
     printValueDistribution(df, 'NrOfDependants')
 
 def labelEncodeCountry(df): 
@@ -137,14 +145,12 @@ def oheCountry(df_in):
     feature_array = ohe.fit_transform(df_in[['Country']]).toarray()
     feature_labels = ohe.categories_
     feature_labels = np.array(feature_labels).ravel()
-    print(feature_labels)
     features = pd.DataFrame(feature_array, columns=feature_labels)
     df_encoded = pd.concat([df_in.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
     df_encoded = df_encoded.drop('Country', axis=1)
     return df_encoded
 
 def oheVerificationType(df): 
-    print(df.head(10))
     print('...OneHotEncoding VerificationType column')
     map_dict = {
         0: "NotSet", 
@@ -175,10 +181,9 @@ removeOngoingLoans()
 removeIncompleteLines()
 
 df_reduced = getReducedDataset()
-# prepareNrOfDependants(df_reduced)
-# labelEncodeCountry(df_reduced)
+prepareNrOfDependants(df_reduced)
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
-print(df_reduced.head(10))
+printDtypes(df_reduced)
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
