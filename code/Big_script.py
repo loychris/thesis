@@ -137,16 +137,31 @@ def oheCountry(df_in):
     feature_array = ohe.fit_transform(df_in[['Country']]).toarray()
     feature_labels = ohe.categories_
     feature_labels = np.array(feature_labels).ravel()
+    print(feature_labels)
     features = pd.DataFrame(feature_array, columns=feature_labels)
-    print('DF IN:    ', df_in.shape)
-    print('FEATURES: ', features.shape)
-    df_encoded = pd.concat([df_in.reset_index(drop=True), features.reset_index(drop=True)], axis=1, ignore_index=True)
-    print('CONCATED: ', df_encoded.shape)
-
-    df_encoded.head(5000).to_csv('LoanData_reduced.csv')
+    df_encoded = pd.concat([df_in.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('Country', axis=1)
     return df_encoded
 
-
+def oheVerificationType(df): 
+    print(df.head(10))
+    print('...OneHotEncoding VerificationType column')
+    map_dict = {
+        0: "NotSet", 
+        1: "IncomeUnverified",
+        2: "CrossRefferencedByPhone",
+        3: "IncomeVerified",
+        4: "IncomeExpensesVerified"
+    }
+    df["VerificationType"] = df["VerificationType"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['VerificationType']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('VerificationType', axis=1)
+    return df_encoded
     
 
 
@@ -163,5 +178,7 @@ df_reduced = getReducedDataset()
 # prepareNrOfDependants(df_reduced)
 # labelEncodeCountry(df_reduced)
 df_reduced = oheCountry(df_reduced)
+df_reduced = oheVerificationType(df_reduced)
+print(df_reduced.head(10))
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
