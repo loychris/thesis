@@ -32,7 +32,7 @@ def removeOngoingLoans():
     print('...removing Loans that are still active')
     global df_clean
     df_clean = df[df['Status'] != 'Current']
-    
+
 def removeIncompleteLines():
     print('...Removing incomplete lines')
     global df_clean
@@ -118,7 +118,6 @@ def plotStuff(df):
     printValueDistribution(df, 'NrOfDependants')
     printValueDistribution(df, 'EmploymentDurationCurrentEmployer')
 
-
 ### FEATURE ENGINEERING #################################
 
 def prepareNrOfDependants(df): 
@@ -132,7 +131,6 @@ def prepareNrOfDependants(df):
     df['NrDependantsGiven'] = NrDependantsGiven
     df['NrOfDependants'] = df['NrOfDependants'].replace('empty', '0')
     df['NrOfDependants'] = df['NrOfDependants'].astype(int)
-    printValueDistribution(df, 'NrOfDependants')
 
 def labelEncodeCountry(df): 
     print('...labelencoding Country column')
@@ -169,7 +167,38 @@ def oheVerificationType(df):
     df_encoded = df_encoded.drop('VerificationType', axis=1)
     return df_encoded
     
+def prepareEmploymentDurationCurrentEmployer(df):
+    print('...preparing EmploymentDurationCurrentEmployer')
+    df['EmploymentDurationCurrentEmployer'] = df['EmploymentDurationCurrentEmployer'].fillna('empty')
+    map_dict = {
+        'MoreThan5Years': '5.5', 
+        'UpTo5Years': "4.5",
+        "TrialPeriod":"0.5",
+        'UpTo1Year': "0.5",
+        "UpTo2Years":"1.5",
+        "UpTo3Years":"2.5",
+        "UpTo4Years":"3.5",
+        'Retiree': "5.5",
+        'Other': "unclear",
+        "empty":"unclear",
+    }
+    df["EmploymentDurationCurrentEmployer"] = df["EmploymentDurationCurrentEmployer"].map(map_dict)
+    print(df.shape)
+    df = df[df["EmploymentDurationCurrentEmployer"] != 'unclear']
+    print(df.shape)
+    # df_reduced['EmploymentDurationCurrentEmployer'] = pd.to_numeric(df_reduced['EmploymentDurationCurrentEmployer'])
+    
+    #df['EmploymentDurationCurrentEmployer'] =  pd.to_numeric(df['EmploymentDurationCurrentEmployer'])
+    df.reset_index(drop=True)
 
+    #for cell in df['EmploymentDurationCurrentEmployer']:
+    #    cell = pd.to_numeric(cell)
+
+
+    df['EmploymentDurationCurrentEmployer'] = pd.to_numeric(df['EmploymentDurationCurrentEmployer'])
+    # df['EmploymentDurationCurrentEmployer'] = df["EmploymentDurationCurrentEmployer"].astype(int)
+    # df["EmploymentDurationCurrentEmployer"] = series
+    return df
 
 
 ### EXECUTE CODE ########################################
@@ -184,6 +213,10 @@ df_reduced = getReducedDataset()
 prepareNrOfDependants(df_reduced)
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
+df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
+print(df_reduced.shape)
 printDtypes(df_reduced)
+df_reduced['EmploymentDurationCurrentEmployer'].fillna('Empty')
+printValueDistribution(df_reduced, 'EmploymentDurationCurrentEmployer')
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
