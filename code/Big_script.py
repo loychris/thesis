@@ -131,6 +131,7 @@ def prepareNrOfDependants(df):
     df['NrDependantsGiven'] = NrDependantsGiven
     df['NrOfDependants'] = df['NrOfDependants'].replace('empty', '0')
     df['NrOfDependants'] = df['NrOfDependants'].astype(int)
+    return df
 
 def labelEncodeCountry(df): 
     print('...labelencoding Country column')
@@ -150,6 +151,8 @@ def oheCountry(df_in):
 
 def oheLanguageCode(df):
     print('...preparing LanguageCode')
+
+    # remove loans with language codes that are not valid
     df = df[df["LanguageCode"] != 22]
     df = df[df["LanguageCode"] != 15]
     df = df[df["LanguageCode"] != 21]
@@ -166,7 +169,6 @@ def oheLanguageCode(df):
         9: "Slovakian",
     }
     df["LanguageCode"] = df["LanguageCode"].map(map_dict)
-    printValueDistribution(df, 'LanguageCode')
     ohe = OneHotEncoder()
     feature_array = ohe.fit_transform(df[['LanguageCode']]).toarray()
     feature_labels = ohe.categories_
@@ -193,6 +195,34 @@ def oheVerificationType(df):
     features = pd.DataFrame(feature_array, columns=feature_labels)
     df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
     df_encoded = df_encoded.drop('VerificationType', axis=1)
+    return df_encoded
+
+def oheUseOfLoan(df): 
+    # remove loans for businesses which are no longer supported
+    df = df[df["UseOfLoan"] != 102]
+    df = df[df["UseOfLoan"] != 110]
+    df = df[df["UseOfLoan"] != 108]
+
+    map_dict = {
+        -1: 'NoUseOfLoanGiven',
+        0:'Loan consolidation',
+        1:'Real estate',
+        2:'Home improvement',
+        3:'Business',
+        4:'Education',
+        5:'Travel',
+        6:'Vehicle',
+        7:'Other',
+        8:'Health'
+    }
+    df["UseOfLoan"] = df["UseOfLoan"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['UseOfLoan']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('UseOfLoan', axis=1)
     return df_encoded
     
 def prepareEmploymentDurationCurrentEmployer(df):
@@ -242,20 +272,22 @@ def exportAsCSV(df):
 
 ### EXECUTE CODE ########################################
 
+
 addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
 
 df_reduced = getReducedDataset()
-prepareNrOfDependants(df_reduced)
+
+df_reduced = prepareNrOfDependants(df_reduced)
 
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = oheLanguageCode(df_reduced)
+df_reduced = oheUseOfLoan(df_reduced)
 
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
-
 
 
 exportAsCSV(df_reduced)
