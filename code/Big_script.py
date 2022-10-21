@@ -154,7 +154,7 @@ def oheCountry(df_in):
     return df_encoded
 
 def oheLanguageCode(df):
-    print('...preparing LanguageCode')
+    print('...OneHotEncoding LanguageCode column')
 
     # remove loans with language codes that are not valid
     df = df[df["LanguageCode"] != 22]
@@ -202,6 +202,8 @@ def oheVerificationType(df):
     return df_encoded
 
 def oheUseOfLoan(df): 
+    print('...OneHotEncoding useOfLoan column')
+
     # remove loans for businesses which are no longer supported
     df = df[df["UseOfLoan"] != 102]
     df = df[df["UseOfLoan"] != 110]
@@ -230,6 +232,7 @@ def oheUseOfLoan(df):
     return df_encoded
 
 def oheEducation(df):
+    print('...OneHotEncoding Education column')
     map_dict = {
         -1: 'NoEducationGiven',
         0:'Loan consolidation',
@@ -248,6 +251,29 @@ def oheEducation(df):
     df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
     df_encoded = df_encoded.drop('Education', axis=1)
     return df_encoded
+
+def oheMaritalStatus(df):
+    print('...OneHotEncoding MaritalStatus column')
+    map_dict = {
+        -1: 'NoMaritalStatusGiven',
+        0:'Loan consolidation',
+        1:'Married',
+        2:'Cohabitant',
+        3:'Single',
+        4:'Divorced',
+        5:'Widow',
+    }
+    df["MaritalStatus"] = df["MaritalStatus"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['MaritalStatus']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('MaritalStatus', axis=1)
+    return df_encoded
+
+
 
 def prepareEmploymentDurationCurrentEmployer(df):
     print('...preparing EmploymentDurationCurrentEmployer')
@@ -306,11 +332,14 @@ df_reduced = getReducedDataset()
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
 
+print(df_reduced.dtypes)
+
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = oheLanguageCode(df_reduced)
 df_reduced = oheUseOfLoan(df_reduced)
 df_reduced = oheEducation(df_reduced)
+df_reduced = oheMaritalStatus(df_reduced)
 
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
