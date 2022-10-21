@@ -133,6 +133,10 @@ def prepareNrOfDependants(df):
     df['NrOfDependants'] = df['NrOfDependants'].astype(int)
     return df
 
+def prepareNewCreditCustomer(df): 
+    df["NewCreditCustomer"] = df["NewCreditCustomer"].astype(int)
+    return df
+
 def labelEncodeCountry(df): 
     print('...labelencoding Country column')
     labelencoder = LabelEncoder()
@@ -209,7 +213,7 @@ def oheUseOfLoan(df):
         1:'Real estate',
         2:'Home improvement',
         3:'Business',
-        4:'Education',
+        4:'EducationLoan',
         5:'Travel',
         6:'Vehicle',
         7:'Other',
@@ -224,7 +228,27 @@ def oheUseOfLoan(df):
     df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
     df_encoded = df_encoded.drop('UseOfLoan', axis=1)
     return df_encoded
-    
+
+def oheEducation(df):
+    map_dict = {
+        -1: 'NoEducationGiven',
+        0:'Loan consolidation',
+        1:'Real estate',
+        2:'Home improvement',
+        3:'Business',
+        4:'EducationLoan',
+        5:'Travel',
+    }
+    df["Education"] = df["Education"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['Education']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('Education', axis=1)
+    return df_encoded
+
 def prepareEmploymentDurationCurrentEmployer(df):
     print('...preparing EmploymentDurationCurrentEmployer')
     df['EmploymentDurationCurrentEmployer'] = df['EmploymentDurationCurrentEmployer'].fillna('empty')
@@ -280,11 +304,13 @@ removeIncompleteLines()
 df_reduced = getReducedDataset()
 
 df_reduced = prepareNrOfDependants(df_reduced)
+df_reduced = prepareNewCreditCustomer(df_reduced)
 
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = oheLanguageCode(df_reduced)
 df_reduced = oheUseOfLoan(df_reduced)
+df_reduced = oheEducation(df_reduced)
 
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
