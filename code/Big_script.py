@@ -179,25 +179,12 @@ def prepareEmploymentDurationCurrentEmployer(df):
         "UpTo3Years":"2.5",
         "UpTo4Years":"3.5",
         'Retiree': "5.5",
-        'Other': "unclear",
-        "empty":"unclear",
+        'Other': "0.0",
+        "empty":"0.0",
     }
     df["EmploymentDurationCurrentEmployer"] = df["EmploymentDurationCurrentEmployer"].map(map_dict)
-    print(df.shape)
-    df = df[df["EmploymentDurationCurrentEmployer"] != 'unclear']
-    print(df.shape)
-    # df_reduced['EmploymentDurationCurrentEmployer'] = pd.to_numeric(df_reduced['EmploymentDurationCurrentEmployer'])
-    
-    #df['EmploymentDurationCurrentEmployer'] =  pd.to_numeric(df['EmploymentDurationCurrentEmployer'])
+    df[["EmploymentDurationCurrentEmployer"]] = df[["EmploymentDurationCurrentEmployer"]].apply(pd.to_numeric)
     df.reset_index(drop=True)
-
-    #for cell in df['EmploymentDurationCurrentEmployer']:
-    #    cell = pd.to_numeric(cell)
-
-
-    df['EmploymentDurationCurrentEmployer'] = pd.to_numeric(df['EmploymentDurationCurrentEmployer'])
-    # df['EmploymentDurationCurrentEmployer'] = df["EmploymentDurationCurrentEmployer"].astype(int)
-    # df["EmploymentDurationCurrentEmployer"] = series
     return df
 
 
@@ -214,9 +201,8 @@ prepareNrOfDependants(df_reduced)
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
-print(df_reduced.shape)
-printDtypes(df_reduced)
-df_reduced['EmploymentDurationCurrentEmployer'].fillna('Empty')
-printValueDistribution(df_reduced, 'EmploymentDurationCurrentEmployer')
+printValueDistribution(df_reduced, 'WorkExperience')
+print(df_reduced.dtypes)
+
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
