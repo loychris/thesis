@@ -145,7 +145,35 @@ def oheCountry(df_in):
     feature_labels = np.array(feature_labels).ravel()
     features = pd.DataFrame(feature_array, columns=feature_labels)
     df_encoded = pd.concat([df_in.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
-    df_encoded = df_encoded.drop('Country', axis=1)
+    df_encoded = df_encoded.drop(['Country'], axis=1)
+    return df_encoded
+
+def oheLanguageCode(df):
+    print('...preparing LanguageCode')
+    df = df[df["LanguageCode"] != 22]
+    df = df[df["LanguageCode"] != 15]
+    df = df[df["LanguageCode"] != 21]
+    df = df[df["LanguageCode"] != 10]
+    df = df[df["LanguageCode"] != 13]
+    df = df[df["LanguageCode"] != 7]
+    map_dict = {
+        1: "Estonian",
+        2: "English",
+        3: "Russian",
+        4: "Finnish",
+        5: "German",
+        6: "Spanish",
+        9: "Slovakian",
+    }
+    df["LanguageCode"] = df["LanguageCode"].map(map_dict)
+    printValueDistribution(df, 'LanguageCode')
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['LanguageCode']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('LanguageCode', axis=1)
     return df_encoded
 
 def oheVerificationType(df): 
@@ -187,10 +215,32 @@ def prepareEmploymentDurationCurrentEmployer(df):
     df.reset_index(drop=True)
     return df
 
+def prepareWorkExperience(df):
+    print('...preparing WorkExperience')
+    df['WorkExperience'] = df['WorkExperience'].fillna('empty')
+    map_dict = {
+        '15To25Years': '10.0', 
+        '5To10Years': '7.5',
+        "10To15Years":"12.5",
+        'MoreThan25Years': "25.0",
+        "2To5Years":"3.5",
+        "LessThan2Years":"1.0",
+        "empty": "0.0"
+    }
+    df["WorkExperience"] = df["WorkExperience"].map(map_dict)
+    df[["WorkExperience"]] = df[["WorkExperience"]].apply(pd.to_numeric)
+    df.reset_index(drop=True)
+    return df
+
 
 ### EXECUTE CODE ########################################
 
-print(df_clean.shape)
+def exportAsCSV(df):
+    print('...exporting csv')
+    df.head(2000).to_csv('Prepared_list.csv')
+
+
+### EXECUTE CODE ########################################
 
 addTargetColumn()
 removeOngoingLoans()
@@ -198,11 +248,17 @@ removeIncompleteLines()
 
 df_reduced = getReducedDataset()
 prepareNrOfDependants(df_reduced)
+
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
+df_reduced = oheLanguageCode(df_reduced)
+
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
-printValueDistribution(df_reduced, 'WorkExperience')
-print(df_reduced.dtypes)
+df_reduced = prepareWorkExperience(df_reduced)
+
+
+
+exportAsCSV(df_reduced)
 
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
