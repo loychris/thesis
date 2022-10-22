@@ -273,7 +273,29 @@ def oheMaritalStatus(df):
     df_encoded = df_encoded.drop('MaritalStatus', axis=1)
     return df_encoded
 
-
+def oheEmploymentStatus(df):
+    print('...OneHotEncoding EmploymentStatus column')
+    df['EmploymentStatus'] = df['EmploymentStatus'].fillna('empty')
+    df = df[df["EmploymentStatus"] != 0]
+    df = df[df["EmploymentStatus"] != 'empty']
+    map_dict = {
+        -1: 'NoEmploymentStatusGiven',
+        1:'Unemployed',
+        2:'Partially employed',
+        3:'Fully employed',
+        4:'Self-employed',
+        5:'Entrepreneur',
+        6:'Retiree'
+    }
+    df["EmploymentStatus"] = df["EmploymentStatus"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['EmploymentStatus']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('EmploymentStatus', axis=1)
+    return df_encoded
 
 def prepareEmploymentDurationCurrentEmployer(df):
     print('...preparing EmploymentDurationCurrentEmployer')
@@ -332,7 +354,6 @@ df_reduced = getReducedDataset()
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
 
-print(df_reduced.dtypes)
 
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
@@ -340,10 +361,12 @@ df_reduced = oheLanguageCode(df_reduced)
 df_reduced = oheUseOfLoan(df_reduced)
 df_reduced = oheEducation(df_reduced)
 df_reduced = oheMaritalStatus(df_reduced)
+df_reduced = oheEmploymentStatus(df_reduced)
 
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
 
+print(df_reduced.dtypes)
 
 exportAsCSV(df_reduced)
 
