@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import lightgbm as lgb
 import math
+from sklearn.feature_selection import f_regression
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OneHotEncoder 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
@@ -86,6 +87,50 @@ def getReducedDataset():
     df_reduced = df_clean.copy(deep=True)
     return df_reduced[inputCols]
 
+def getDataForCorrelation(df): 
+    print("...Reducing DataSet to numeric columns")
+    inputCols = [
+        # APPLICATION
+        "ApplicationSignedHour", 'ApplicationSignedWeekday', 
+
+        # LOAN
+        'AppliedAmount',
+
+        # DEMOGRAPHIC
+        'Age','LoanDuration', 'MonthlyPayment',
+        'NrOfDependants', 'EmploymentDurationCurrentEmployer', 'WorkExperience', 
+
+        # INCOME 
+        'IncomeFromPrincipalEmployer','IncomeFromPension', 'IncomeFromFamilyAllowance', 'IncomeFromSocialWelfare', 
+        'IncomeFromLeavePay', 'IncomeFromChildSupport', 'IncomeOther', 'IncomeTotal', 
+
+        # LIABILITIES
+        'ExistingLiabilities', 'LiabilitiesTotal', 'RefinanceLiabilities', 
+        'DebtToIncome', 'FreeCash', 'MonthlyPaymentDay', 
+
+        # PREV LOANS
+        'NewCreditCustomer', 'NoOfPreviousLoansBeforeLoan', 'AmountOfPreviousLoansBeforeLoan', 
+        'PreviousRepaymentsBeforeLoan', 'PreviousEarlyRepaymentsBefoleLoan', 'PreviousEarlyRepaymentsCountBeforeLoan',
+
+        'TARGET'
+    ]
+    printValueDistribution(df, 'WorkExperience')
+    df_copy = df.copy(deep=True)
+    return df_copy[inputCols]
+
+def fillMonthlyPayments(df):
+    print('...filling monthlyPaymnet')
+    df.loc[:,'MonthlyPayment'] = df['MonthlyPayment'].fillna(df['MonthlyPayment'].mean())
+
+def fillPreviousRepaymentsBeforeLoan(df):
+    print('...filling PreviousRepaymentsBeforeLoan')
+    df.loc[:,'PreviousRepaymentsBeforeLoan'] = df['PreviousRepaymentsBeforeLoan'].fillna(df['PreviousRepaymentsBeforeLoan'].mean())
+
+def fillPreviousEarlyRepaymentsBefoleLoan(df):
+    print('...filling PreviousEarlyRepaymentsBefoleLoan')
+    df.loc[:,'PreviousEarlyRepaymentsBefoleLoan'] = df['PreviousEarlyRepaymentsBefoleLoan'].fillna(df['PreviousEarlyRepaymentsBefoleLoan'].mean())
+
+
 
 ### PLOT & PRINT STUFF ##################################
 
@@ -110,7 +155,6 @@ def printDtypes(df):
     print(df.dtypes)
 
 def printValueDistribution(df, col):
-    print()
     print(df[col].fillna('empty').value_counts())
     
 def plotStuff(df): 
@@ -118,24 +162,21 @@ def plotStuff(df):
     printValueDistribution(df, 'NrOfDependants')
     printValueDistribution(df, 'EmploymentDurationCurrentEmployer')
 
-### FEATURE ENGINEERING #################################
+def PlotHeatMap(df):
+    plt.figure(figsize=(100,15))
+    sns.heatmap(df.corr(), annot=True, cmap='RdBu', fmt='.2f')
+    plt.show()
 
-def prepareNrOfDependants(df): 
-    print('...Adding NrDependantsGiven column (default: 1, in time: 0)')
-    df['NrOfDependants'] = df['NrOfDependants'].fillna('empty')
-    df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
-    NrDependantsGiven = []
-    for row in df['NrOfDependants']:
-        if row == 'empty' : NrDependantsGiven.append(1)
-        else: NrDependantsGiven.append(0)
-    df['NrDependantsGiven'] = NrDependantsGiven
-    df['NrOfDependants'] = df['NrOfDependants'].replace('empty', '0')
-    df['NrOfDependants'] = df['NrOfDependants'].astype(int)
-    return df
+def printNumberOfUniqueValues(df):
+    for column in df.columns:
+        print("{}\t: {}".format(column, len(np.unique(df[column]))))
 
-def prepareNewCreditCustomer(df): 
-    df["NewCreditCustomer"] = df["NewCreditCustomer"].astype(int)
-    return df
+def printIsNullCounts(df):
+    print('...filling monthly payment')
+    print(df.isnull().sum())
+
+
+### ONE_HOT_ENCODEING CATEGORIAL FEATURES ###############
 
 def labelEncodeCountry(df): 
     print('...labelencoding Country column')
@@ -297,6 +338,108 @@ def oheEmploymentStatus(df):
     df_encoded = df_encoded.drop('EmploymentStatus', axis=1)
     return df_encoded
 
+def oheOccupationArea(df):
+    print('...OneHotEncoding OccupationArea column')
+    df['OccupationArea'] = df['OccupationArea'].fillna(-1)
+    map_dict = {
+        -1:'NoOccupationAreaGiven',
+        1:'Other',
+        2:'Mining',
+        3:'Processing',
+        4:'Energy',
+        5:'Utilities',
+        6:'Construction',
+        7:'Retail and wholesale',
+        8:'Transport and warehousing',
+        9:'Hospitality and catering',
+        10:'Info and telecom',
+        11:'Finance and insurance',
+        12:'Real-estate',
+        13:'Research',
+        14:'Administrative',
+        15:'CivilService',
+        16:'Education',
+        17:'Healthcare',
+        18:'ArtEntertainment',
+        19:'Agriculture'
+    }
+    df["OccupationArea"] = df["OccupationArea"].map(map_dict)
+    df['OccupationArea'] = df['OccupationArea'].fillna('empty')
+    df = df[df["OccupationArea"] != 'empty']
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['OccupationArea']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('OccupationArea', axis=1)
+    return df_encoded
+
+def oheHomeOwnershipType(df): 
+    print('...OneHotEncoding HomeOwnershipType column')
+    map_dict = {
+        -1:'NoHomeOwnershipTypeGiven',
+        0:'Homeless',
+        1:'Owner',
+        2:'Living with parents',
+        3:'Tenant, pre-furnished property',
+        4:'Tenant, unfurnished property',
+        5:'Council house',
+        6:'Joint tenant',
+        7:'Joint ownership',
+        8:'Mortgage',
+        9:'Owner with encumbrance',
+        10:'Other'
+    }
+    df["HomeOwnershipType"] = df["HomeOwnershipType"].map(map_dict)
+    df['HomeOwnershipType'] = df['HomeOwnershipType'].fillna('NoHomeOwnershipTypeGiven')
+
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['HomeOwnershipType']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('HomeOwnershipType', axis=1)
+    return df_encoded
+
+def oheGender(df):
+    print('...OneHotEncoding Gender column')
+    df['Gender'] = df['Gender'].fillna('NoGenderGiven')
+    map_dict = {
+        0:'Male',
+        1:'Female',
+        2:'NoGenderGivens',
+    }
+    df["Gender"] = df["Gender"].map(map_dict)
+    ohe = OneHotEncoder()
+    feature_array = ohe.fit_transform(df[['Gender']]).toarray()
+    feature_labels = ohe.categories_
+    feature_labels = np.array(feature_labels).ravel()
+    features = pd.DataFrame(feature_array, columns=feature_labels)
+    df_encoded = pd.concat([df.reset_index(drop=True), features.reset_index(drop=True)], axis=1)
+    df_encoded = df_encoded.drop('Gender', axis=1)
+    return df_encoded
+
+### PREPARING NUMERIC FEATURES ##########################
+
+def prepareNrOfDependants(df): 
+    print('...Adding NrDependantsGiven column (default: 1, in time: 0)')
+    df['NrOfDependants'] = df['NrOfDependants'].fillna('empty')
+    df['NrOfDependants'] = df['NrOfDependants'].replace('10Plus', '11')
+    NrDependantsGiven = []
+    for row in df['NrOfDependants']:
+        if row == 'empty' : NrDependantsGiven.append(1)
+        else: NrDependantsGiven.append(0)
+    df['NrDependantsGiven'] = NrDependantsGiven
+    df['NrOfDependants'] = df['NrOfDependants'].replace('empty', '0')
+    df['NrOfDependants'] = df['NrOfDependants'].astype(int)
+    return df
+
+def prepareNewCreditCustomer(df): 
+    df["NewCreditCustomer"] = df["NewCreditCustomer"].astype(int)
+    return df
+
 def prepareEmploymentDurationCurrentEmployer(df):
     print('...preparing EmploymentDurationCurrentEmployer')
     df['EmploymentDurationCurrentEmployer'] = df['EmploymentDurationCurrentEmployer'].fillna('empty')
@@ -337,9 +480,9 @@ def prepareWorkExperience(df):
 
 ### EXECUTE CODE ########################################
 
-def exportAsCSV(df):
+def exportAsCSV(df, name):
     print('...exporting csv')
-    df.head(2000).to_csv('Prepared_list.csv')
+    df.head(2000).to_csv(name + '.csv')
 
 
 ### EXECUTE CODE ########################################
@@ -349,12 +492,12 @@ addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
 
+# remove unusable data 
 df_reduced = getReducedDataset()
-
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
 
-
+# One Hot Encode Stuff 
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = oheLanguageCode(df_reduced)
@@ -362,13 +505,31 @@ df_reduced = oheUseOfLoan(df_reduced)
 df_reduced = oheEducation(df_reduced)
 df_reduced = oheMaritalStatus(df_reduced)
 df_reduced = oheEmploymentStatus(df_reduced)
+df_reduced = oheOccupationArea(df_reduced)
+df_reduced = oheHomeOwnershipType(df_reduced)
+df_reduced = oheGender(df_reduced)
 
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
 
-print(df_reduced.dtypes)
+printIsNullCounts(df_reduced)
 
-exportAsCSV(df_reduced)
+fillMonthlyPayments(df_reduced)
+fillPreviousRepaymentsBeforeLoan(df_reduced)
+fillPreviousEarlyRepaymentsBefoleLoan(df_reduced)
+
+# print stuff 
+# printNumberOfUniqueValues(df_reduced)
+printIsNullCounts(df_reduced)
+
+# Plot stuff
+df_numeric = getDataForCorrelation(df_reduced)
+# PlotHeatMap(df_numeric)
+
+
+# Export stuff 
+exportAsCSV(df_reduced, 'reduced')
+exportAsCSV(df_numeric, 'numeric')
 
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
