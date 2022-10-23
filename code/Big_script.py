@@ -163,11 +163,13 @@ def plotStuff(df):
     printValueDistribution(df, 'EmploymentDurationCurrentEmployer')
 
 def PlotHeatMap(df):
+    print('...plotting Heatmap')
     plt.figure(figsize=(100,15))
     sns.heatmap(df.corr(), annot=True, cmap='RdBu', fmt='.2f')
     plt.show()
 
 def printNumberOfUniqueValues(df):
+    print('...printing number of unique valies per column')
     for column in df.columns:
         print("{}\t: {}".format(column, len(np.unique(df[column]))))
 
@@ -492,12 +494,12 @@ addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
 
-# remove unusable data 
+# REMOVING UNSTABLE DATA
 df_reduced = getReducedDataset()
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
 
-# One Hot Encode Stuff 
+# ONE HOT ENCODING STUFF
 df_reduced = oheCountry(df_reduced)
 df_reduced = oheVerificationType(df_reduced)
 df_reduced = oheLanguageCode(df_reduced)
@@ -512,24 +514,20 @@ df_reduced = oheGender(df_reduced)
 df_reduced = prepareEmploymentDurationCurrentEmployer(df_reduced)
 df_reduced = prepareWorkExperience(df_reduced)
 
-printIsNullCounts(df_reduced)
-
+# FILL INCOMPLETE CELLS WITH MEAN OF COLUMNS
 fillMonthlyPayments(df_reduced)
 fillPreviousRepaymentsBeforeLoan(df_reduced)
 fillPreviousEarlyRepaymentsBefoleLoan(df_reduced)
 
-# print stuff 
+# PRINT STUFF
 # printNumberOfUniqueValues(df_reduced)
-printIsNullCounts(df_reduced)
+# printIsNullCounts(df_reduced)
 
-# Plot stuff
-df_numeric = getDataForCorrelation(df_reduced)
+# PLOT STUFF
+# df_numeric = getDataForCorrelation(df_reduced)
 # PlotHeatMap(df_numeric)
-
-
-# Export stuff 
-exportAsCSV(df_reduced, 'reduced')
-exportAsCSV(df_numeric, 'numeric')
-
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
+# EXPORTING STUFF
+exportAsCSV(df_reduced, 'reduced')
+# exportAsCSV(df_numeric, 'numeric')
