@@ -11,6 +11,9 @@ from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
 
+TRAIN_TEST_RATIO = 0.2
+NUMBER_OF_TREES = 100
+
 pd.set_option('display.max_columns', None)  # or 1000
 pd.set_option('display.max_rows', None)  # or 1000
 
@@ -480,21 +483,71 @@ def prepareWorkExperience(df):
     return df
 
 
-### EXECUTE CODE ########################################
+### EXPORT STUFF ########################################
 
 def exportAsCSV(df, name):
     print('...exporting csv')
     df.head(2000).to_csv(name + '.csv')
 
+def getTrainRestSplit(df): 
+    print('...splitting data into train/test sets')
+    X = df.iloc[:,1:].values
+    y = df['TARGET'].values
+    return train_test_split(X, y, test_size=TRAIN_TEST_RATIO, random_state=22)
+
+def normalizeData(X_train, X_test):
+    print('...normalizing data')
+    min_max_scaler = MinMaxScaler()
+    X_train_scaled = min_max_scaler.fit_transform(X_train)
+    X_test_scaled = min_max_scaler.fit_transform(X_test)
+    return X_train_scaled, X_test_scaled
+
+def trainModel(X_train_scaled, X_test_scaled, y_train, y_test):
+    print('...training model')
+    model = lgb.LGBMClassifier(n_estimators=NUMBER_OF_TREES, class_weight='balanced', random_state=22)
+    model.fit(X_train_scaled, y_train, eval_metric='auc', 
+            eval_set=[(X_train_scaled, y_train),(X_test_scaled, y_test)])
+    return model
+
+def testModel(model, X_train_scaled, X_test_scaled, y_train, y_test): 
+    print('...testing model')
+
+    # Predict the probability score
+    prob_train = model.predict_proba(X_train_scaled)
+    print('prob_train: ', prob_train)
+    prob_test = model.predict_proba(X_test_scaled)
+    print('prob_test: ', prob_test)
+
+    # Create train and test curve
+    fpr_train, tpr_train, thresh_train = roc_curve(y_train, prob_train[:,1])
+    fpr_test, tpr_test, thresh_test = roc_curve(y_test, prob_test[:,1])
+
+
+
+    # Create the straight line (how the graph looks like if the model does random guess instead)
+    random_probs = [0 for i in range(len(y_test))]
+    p_fpr, p_tpr, _ = roc_curve(y_test, random_probs)
+
+    # Plot the model
+    print('...plotting result')
+    plt.figure(figsize=(8,6))
+    plt.title('ROC Curve')
+    plt.plot(fpr_train, tpr_train, label='Train')
+    plt.plot(fpr_test, tpr_test, label='Test')
+    plt.plot(p_fpr, p_tpr)
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend()
+    plt.show()
 
 ### EXECUTE CODE ########################################
 
-
+# PREPARATION & CLEANUP
 addTargetColumn()
 removeOngoingLoans()
 removeIncompleteLines()
 
-# REMOVING UNSTABLE DATA
+# REMOVING UNUSABLE DATA
 df_reduced = getReducedDataset()
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
@@ -530,4 +583,93 @@ fillPreviousEarlyRepaymentsBefoleLoan(df_reduced)
 
 # EXPORTING STUFF
 exportAsCSV(df_reduced, 'reduced')
+
 # exportAsCSV(df_numeric, 'numeric')
+
+# TEST TRAIN SPLIT 
+# X_train, X_test, y_train, y_test = getTrainRestSplit(df_reduced) 
+
+# NORMALISATION
+# X_train_scaled, X_test_scaled = normalizeData(X_train, X_test)
+
+# TRAIN MODEL
+# model = trainModel(X_train_scaled, X_test_scaled, y_train, y_test)
+
+# TEST MODEL
+# testModel(model, X_train_scaled, X_test_scaled, y_train, y_test)
+
+# Split the data into train/test
+X = df_reduced.drop('TARGET', axis=1).values
+
+y = df_reduced['TARGET'].values
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=22)
+
+# Value normalization
+min_max_scaler = MinMaxScaler()
+X_train_scaled = min_max_scaler.fit_transform(X_train)
+X_test_scaled = min_max_scaler.fit_transform(X_test)
+
+# Initializing LightGBM classifier
+model = lgb.LGBMClassifier(n_estimators=100, class_weight='balanced', random_state=22)
+
+# Training the LightGBM model
+model.fit(X_train_scaled, y_train, eval_metric='auc', 
+          eval_set=[(X_train_scaled, y_train),(X_test_scaled, y_test)])
+
+# Predict the probability score
+prob_train = model.predict_proba(X_train_scaled)
+prob_test = model.predict_proba(X_test_scaled)
+
+# Create train and test curve
+fpr_train, tpr_train, thresh_train = roc_curve(y_train, prob_train[:,1])
+fpr_test, tpr_test, thresh_test = roc_curve(y_test, prob_test[:,1])
+
+# Create the straight line (how the graph looks like if the model does random guess instead)
+random_probs = [0 for i in range(len(y_test))]
+p_fpr, p_tpr, _ = roc_curve(y_test, random_probs)
+
+# Plot the ROC graph
+plt.figure(figsize=(8,6))
+plt.title('ROC Curve')
+plt.plot(fpr_train, tpr_train, label='Train')
+plt.plot(fpr_test, tpr_test, label='Test')
+plt.plot(p_fpr, p_tpr)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend()
+
+# Calculating the train and test AUC score
+auc_score_train = roc_auc_score(y_train, prob_train[:,1])
+auc_score_test = roc_auc_score(y_test, prob_test[:,1])
+
+print(auc_score_train)
+print(auc_score_test)
+
+#### THE CODE BELOW IS NOT EXPLAINED IN THE MEDIUM ARTICLE
+# Predict train and test data
+pred_train = model.predict(X_train_scaled)
+pred_test = model.predict(X_test_scaled)
+
+# Constructing the confusion matrix based on train data
+cm_train = confusion_matrix(y_train, pred_train)
+
+# Display the train confusion matrix
+plt.figure(figsize=(6,6))
+plt.title('Confusion matrix on train data')
+sns.heatmap(cm_train, annot=True, fmt='d', cmap=plt.cm.Blues, cbar=False)
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.show()
+
+# Constructing the confusion matrix based on test data
+cm_test = confusion_matrix(y_test, pred_test)
+
+# Display the test confusion matrix
+plt.figure(figsize=(6,6))
+plt.title('Confusion matrix on test data')
+sns.heatmap(cm_test, annot=True, fmt='d', cmap=plt.cm.Blues, cbar=False)
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.show()
