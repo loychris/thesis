@@ -11,8 +11,11 @@ from sklearn.preprocessing import MinMaxScaler, LabelEncoder, OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix
 
-TRAIN_TEST_RATIO = 0.2
+# der gesamt 
+
+TRAIN_TEST_RATIO = 0.3
 NUMBER_OF_TREES = 100
+RANDOM_STATE = 22
 
 pd.set_option('display.max_columns', None)  # or 1000
 pd.set_option('display.max_rows', None)  # or 1000
@@ -60,8 +63,39 @@ def removeIncompleteLines():
     # remove duplicates
     incompleteRows = list(dict.fromkeys(incompleteRows))
     
-    # remove the incomplete lines from the dataset
+    # remove bad lines found above
     df_clean = df_clean.drop(incompleteRows)
+
+
+    print(df_clean.shape)
+    # remove loans with language codes that are not valid
+    df_clean = df_clean[df_clean["LanguageCode"] != 22]
+    df_clean = df_clean[df_clean["LanguageCode"] != 15]
+    df_clean = df_clean[df_clean["LanguageCode"] != 21]
+    df_clean = df_clean[df_clean["LanguageCode"] != 10]
+    df_clean = df_clean[df_clean["LanguageCode"] != 13]
+    df_clean = df_clean[df_clean["LanguageCode"] != 7]
+    print(df_clean.shape)
+
+    
+    # remove loans for businesses which are no longer supported
+    df_clean = df_clean[df_clean["UseOfLoan"] != 102]
+    df_clean = df_clean[df_clean["UseOfLoan"] != 110]
+    df_clean = df_clean[df_clean["UseOfLoan"] != 108]
+    print(df_clean.shape)
+
+    # remove incomplete empty EmploymentStatus area lines
+    df_clean['EmploymentStatus'] = df_clean['EmploymentStatus'].fillna('empty')
+    df_clean = df_clean[df_clean["EmploymentStatus"] != 0]
+    df_clean = df_clean[df_clean["EmploymentStatus"] != 'empty']
+    print(df_clean.shape)
+
+    # remove incomplete empty Occupation area lines
+    df_clean['OccupationArea'] = df_clean['OccupationArea'].fillna('empty')
+    df_clean = df_clean[df_clean["OccupationArea"] != 'empty']
+    print(df_clean.shape)
+    
+    # remove the incomplete lines from the dataset
     
 def getReducedDataset():
     print('...Reducing columns to relevant inputs')
@@ -133,54 +167,6 @@ def fillPreviousEarlyRepaymentsBefoleLoan(df):
     print('...filling PreviousEarlyRepaymentsBefoleLoan')
     df.loc[:,'PreviousEarlyRepaymentsBefoleLoan'] = df['PreviousEarlyRepaymentsBefoleLoan'].fillna(df['PreviousEarlyRepaymentsBefoleLoan'].mean())
 
-
-
-### PLOT & PRINT STUFF ##################################
-
-def plotTargetDistributionForCol(df, col): 
-    print(pd.DataFrame({
-        "Late": df[df['TARGET']==1][col].value_counts(),
-        "On Time": df[df['TARGET']==0][col].value_counts()
-    }))
-
-def plotAgeDistribution(df):
-    print('...Plotting age distribution')
-
-    plt.figure(figsize=(10,8))
-    plt.title('Age Distribution')
-    plt.xlabel('Age')
-    sns.kdeplot(df[df['TARGET']==1]['Age'], label='Target=1')
-    sns.kdeplot(df[df['TARGET']==0]['Age'], label='Target=0')
-    plt.grid()
-    plt.show()
-    
-def printDtypes(df):
-    print(df.dtypes)
-
-def printValueDistribution(df, col):
-    print(df[col].fillna('empty').value_counts())
-    
-def plotStuff(df): 
-    printValueDistribution(df, 'Country')
-    printValueDistribution(df, 'NrOfDependants')
-    printValueDistribution(df, 'EmploymentDurationCurrentEmployer')
-
-def PlotHeatMap(df):
-    print('...plotting Heatmap')
-    plt.figure(figsize=(100,15))
-    sns.heatmap(df.corr(), annot=True, cmap='RdBu', fmt='.2f')
-    plt.show()
-
-def printNumberOfUniqueValues(df):
-    print('...printing number of unique valies per column')
-    for column in df.columns:
-        print("{}\t: {}".format(column, len(np.unique(df[column]))))
-
-def printIsNullCounts(df):
-    print('...filling monthly payment')
-    print(df.isnull().sum())
-
-
 ### ONE_HOT_ENCODEING CATEGORIAL FEATURES ###############
 
 def labelEncodeCountry(df): 
@@ -201,14 +187,6 @@ def oheCountry(df_in):
 
 def oheLanguageCode(df):
     print('...OneHotEncoding LanguageCode column')
-
-    # remove loans with language codes that are not valid
-    df = df[df["LanguageCode"] != 22]
-    df = df[df["LanguageCode"] != 15]
-    df = df[df["LanguageCode"] != 21]
-    df = df[df["LanguageCode"] != 10]
-    df = df[df["LanguageCode"] != 13]
-    df = df[df["LanguageCode"] != 7]
     map_dict = {
         1: "Estonian",
         2: "English",
@@ -249,12 +227,6 @@ def oheVerificationType(df):
 
 def oheUseOfLoan(df): 
     print('...OneHotEncoding useOfLoan column')
-
-    # remove loans for businesses which are no longer supported
-    df = df[df["UseOfLoan"] != 102]
-    df = df[df["UseOfLoan"] != 110]
-    df = df[df["UseOfLoan"] != 108]
-
     map_dict = {
         -1: 'NoUseOfLoanGiven',
         0:'Loan consolidation',
@@ -321,9 +293,6 @@ def oheMaritalStatus(df):
 
 def oheEmploymentStatus(df):
     print('...OneHotEncoding EmploymentStatus column')
-    df['EmploymentStatus'] = df['EmploymentStatus'].fillna('empty')
-    df = df[df["EmploymentStatus"] != 0]
-    df = df[df["EmploymentStatus"] != 'empty']
     map_dict = {
         -1: 'NoEmploymentStatusGiven',
         1:'Unemployed',
@@ -348,6 +317,7 @@ def oheOccupationArea(df):
     df['OccupationArea'] = df['OccupationArea'].fillna(-1)
     map_dict = {
         -1:'NoOccupationAreaGiven',
+        0: 'NoOccupationAreaGiven',
         1:'Other',
         2:'Mining',
         3:'Processing',
@@ -366,11 +336,9 @@ def oheOccupationArea(df):
         16:'Education',
         17:'Healthcare',
         18:'ArtEntertainment',
-        19:'Agriculture'
+        19:'Agriculture',
     }
     df["OccupationArea"] = df["OccupationArea"].map(map_dict)
-    df['OccupationArea'] = df['OccupationArea'].fillna('empty')
-    df = df[df["OccupationArea"] != 'empty']
     ohe = OneHotEncoder()
     feature_array = ohe.fit_transform(df[['OccupationArea']]).toarray()
     feature_labels = ohe.categories_
@@ -383,22 +351,22 @@ def oheOccupationArea(df):
 def oheHomeOwnershipType(df): 
     print('...OneHotEncoding HomeOwnershipType column')
     map_dict = {
-        -1:'NoHomeOwnershipTypeGiven',
+        -1:'No Home Ownership Type Provided',
         0:'Homeless',
         1:'Owner',
-        2:'Living with parents',
-        3:'Tenant, pre-furnished property',
-        4:'Tenant, unfurnished property',
-        5:'Council house',
-        6:'Joint tenant',
-        7:'Joint ownership',
+        2:'Living with Parents',
+        3:'Tenant, Pre-furnished Property',
+        4:'Tenant, unfurnished Property',
+        5:'Council House',
+        6:'Joint Tenant',
+        7:'Joint Twnership',
         8:'Mortgage',
-        9:'Owner with encumbrance',
+        9:'Owner with Encumbrance',
         10:'Other'
     }
+    
     df["HomeOwnershipType"] = df["HomeOwnershipType"].map(map_dict)
     df['HomeOwnershipType'] = df['HomeOwnershipType'].fillna('NoHomeOwnershipTypeGiven')
-
     ohe = OneHotEncoder()
     feature_array = ohe.fit_transform(df[['HomeOwnershipType']]).toarray()
     feature_labels = ohe.categories_
@@ -482,16 +450,73 @@ def prepareWorkExperience(df):
     df.reset_index(drop=True)
     return df
 
+### PLOTS ###############################################
 
-### EXPORT STUFF ########################################
+### PRINTS  #############################################
+
+def printDtypes(df):
+    print(df.dtypes)
+
+def printValueDistribution(df, col):
+    print(df[col].fillna('empty').value_counts())
+    
+
+### PLOT NOMINAL DISTRIBUTIONS #########################
+
+def plotTargetDistributionForCol(df, col): 
+    print(pd.DataFrame({
+        "Late": df[df['TARGET']==1][col].value_counts(),
+        "On Time": df[df['TARGET']==0][col].value_counts()
+    }))
+
+def plotAgeDistribution(df):
+    print('...Plotting age distribution')
+    plt.figure(figsize=(10,8))
+    plt.title('Age Distribution')
+    plt.xlabel('Age')
+    sns.kdeplot(df[df['TARGET']==1]['Age'], label='Repayment Late/Default', color='red')
+    sns.kdeplot(df[df['TARGET']==0]['Age'], label='Repayment on Time', color='green')
+    plt.axvline(x=df[df['TARGET']==1]['Age'].mean(),color='red', ls='--')
+    plt.axvline(x=df[df['TARGET']==0]['Age'].mean(),color='green', ls='--')
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+
+def PlotHeatMap(df):
+    print('...plotting Heatmap')
+    plt.figure(figsize=(100,15))
+    sns.heatmap(df.corr(), annot=True, cmap='RdBu', fmt='.2f')
+    plt.show()
+
+def printNumberOfUniqueValues(df):
+    print('...printing number of unique valies per column')
+    for column in df.columns:
+        print("{}\t: {}".format(column, len(np.unique(df[column]))))
+
+def printIsNullCounts(df):
+    print('...filling monthly payment')
+    print(df.isnull().sum())
+
+### PLOT NUMERICAL VALUES ##############################
+
+def plotAgeDistrinution(df): 
+    print('...plotting age distribution')
+    printValueDistribution(df, 'age')
+    guys = df.query('Month == 7')
+    guys.insert(0,'Yr',range(0,len(guys)))
+
+### EXPORTS ############################################
 
 def exportAsCSV(df, name):
     print('...exporting csv')
     df.head(2000).to_csv(name + '.csv')
 
+### MODEL ##############################################
+
 def getTrainRestSplit(df): 
     print('...splitting data into train/test sets')
-    X = df.iloc[:,1:].values
+    X = df.drop('TARGET', axis=1).values
     y = df['TARGET'].values
     return train_test_split(X, y, test_size=TRAIN_TEST_RATIO, random_state=22)
 
@@ -504,7 +529,7 @@ def normalizeData(X_train, X_test):
 
 def trainModel(X_train_scaled, X_test_scaled, y_train, y_test):
     print('...training model')
-    model = lgb.LGBMClassifier(n_estimators=NUMBER_OF_TREES, class_weight='balanced', random_state=22)
+    model = lgb.LGBMClassifier(n_estimators=NUMBER_OF_TREES, class_weight='balanced', random_state=RANDOM_STATE)
     model.fit(X_train_scaled, y_train, eval_metric='auc', 
             eval_set=[(X_train_scaled, y_train),(X_test_scaled, y_test)])
     return model
@@ -514,15 +539,11 @@ def testModel(model, X_train_scaled, X_test_scaled, y_train, y_test):
 
     # Predict the probability score
     prob_train = model.predict_proba(X_train_scaled)
-    print('prob_train: ', prob_train)
     prob_test = model.predict_proba(X_test_scaled)
-    print('prob_test: ', prob_test)
 
     # Create train and test curve
     fpr_train, tpr_train, thresh_train = roc_curve(y_train, prob_train[:,1])
     fpr_test, tpr_test, thresh_test = roc_curve(y_test, prob_test[:,1])
-
-
 
     # Create the straight line (how the graph looks like if the model does random guess instead)
     random_probs = [0 for i in range(len(y_test))]
@@ -540,6 +561,7 @@ def testModel(model, X_train_scaled, X_test_scaled, y_train, y_test):
     plt.legend()
     plt.show()
 
+
 ### EXECUTE CODE ########################################
 
 # PREPARATION & CLEANUP
@@ -551,6 +573,10 @@ removeIncompleteLines()
 df_reduced = getReducedDataset()
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
+
+# PLOT DISTRIBUTIONS 
+plotAgeDistribution(df_reduced)
+
 
 # ONE HOT ENCODING STUFF
 df_reduced = oheCountry(df_reduced)
@@ -572,19 +598,24 @@ fillMonthlyPayments(df_reduced)
 fillPreviousRepaymentsBeforeLoan(df_reduced)
 fillPreviousEarlyRepaymentsBefoleLoan(df_reduced)
 
-# PRINT STUFF
+
+# PRINTS
 # printNumberOfUniqueValues(df_reduced)
 # printIsNullCounts(df_reduced)
 
-# PLOT STUFF
+# PLOTS
 # df_numeric = getDataForCorrelation(df_reduced)
 # PlotHeatMap(df_numeric)
 # plotTargetDistributionForCol(df_reduced, 'Country')
 
-# EXPORTING STUFF
-exportAsCSV(df_reduced, 'reduced')
-
+# EXPORTS
+# exportAsCSV(df_reduced, 'reduced')
 # exportAsCSV(df_numeric, 'numeric')
+
+
+# Der nachforlgende Code basiert auf dem Medium Post 
+# 'LightGBM on Home Credit Default Risk Prediction' von Muhammad Ardi (2020)
+# https://medium.com/becoming-human/lightgbm-on-home-credit-default-risk-prediction-5b17e68a6e9
 
 # TEST TRAIN SPLIT 
 # X_train, X_test, y_train, y_test = getTrainRestSplit(df_reduced) 
@@ -597,79 +628,3 @@ exportAsCSV(df_reduced, 'reduced')
 
 # TEST MODEL
 # testModel(model, X_train_scaled, X_test_scaled, y_train, y_test)
-
-# Split the data into train/test
-X = df_reduced.drop('TARGET', axis=1).values
-
-y = df_reduced['TARGET'].values
-
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=22)
-
-# Value normalization
-min_max_scaler = MinMaxScaler()
-X_train_scaled = min_max_scaler.fit_transform(X_train)
-X_test_scaled = min_max_scaler.fit_transform(X_test)
-
-# Initializing LightGBM classifier
-model = lgb.LGBMClassifier(n_estimators=100, class_weight='balanced', random_state=22)
-
-# Training the LightGBM model
-model.fit(X_train_scaled, y_train, eval_metric='auc', 
-          eval_set=[(X_train_scaled, y_train),(X_test_scaled, y_test)])
-
-# Predict the probability score
-prob_train = model.predict_proba(X_train_scaled)
-prob_test = model.predict_proba(X_test_scaled)
-
-# Create train and test curve
-fpr_train, tpr_train, thresh_train = roc_curve(y_train, prob_train[:,1])
-fpr_test, tpr_test, thresh_test = roc_curve(y_test, prob_test[:,1])
-
-# Create the straight line (how the graph looks like if the model does random guess instead)
-random_probs = [0 for i in range(len(y_test))]
-p_fpr, p_tpr, _ = roc_curve(y_test, random_probs)
-
-# Plot the ROC graph
-plt.figure(figsize=(8,6))
-plt.title('ROC Curve')
-plt.plot(fpr_train, tpr_train, label='Train')
-plt.plot(fpr_test, tpr_test, label='Test')
-plt.plot(p_fpr, p_tpr)
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.legend()
-
-# Calculating the train and test AUC score
-auc_score_train = roc_auc_score(y_train, prob_train[:,1])
-auc_score_test = roc_auc_score(y_test, prob_test[:,1])
-
-print(auc_score_train)
-print(auc_score_test)
-
-#### THE CODE BELOW IS NOT EXPLAINED IN THE MEDIUM ARTICLE
-# Predict train and test data
-pred_train = model.predict(X_train_scaled)
-pred_test = model.predict(X_test_scaled)
-
-# Constructing the confusion matrix based on train data
-cm_train = confusion_matrix(y_train, pred_train)
-
-# Display the train confusion matrix
-plt.figure(figsize=(6,6))
-plt.title('Confusion matrix on train data')
-sns.heatmap(cm_train, annot=True, fmt='d', cmap=plt.cm.Blues, cbar=False)
-plt.xlabel('Predicted Label')
-plt.ylabel('True Label')
-plt.show()
-
-# Constructing the confusion matrix based on test data
-cm_test = confusion_matrix(y_test, pred_test)
-
-# Display the test confusion matrix
-plt.figure(figsize=(6,6))
-plt.title('Confusion matrix on test data')
-sns.heatmap(cm_test, annot=True, fmt='d', cmap=plt.cm.Blues, cbar=False)
-plt.xlabel('Predicted Label')
-plt.ylabel('True Label')
-plt.show()
