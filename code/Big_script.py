@@ -41,17 +41,24 @@ def addDefaultColumn(df):
     df['DEFAULT'] = DEFAULT
     return df 
 
-def addAmountToFreeCashColumn(df): 
-    print('...Adding AmountToFreeCashColumn column')
-    AmountToFreeCashColumn = []
-    i = 0
-    for row in df['FreeCash']:
-        if i < 100:
-            print(row)
-        #if row == 'Late' : AmountToFreeCashColumn.append(1)
-        #else: AmountToFreeCashColumn.append(0)
-    
-    # df['AmountToFreeCashColumn'] = AmountToFreeCashColumn
+def addFreeCashToAmountColumn(df): 
+    print('...Adding FreeCashToAmountColumn column')
+    FreeCashToAmountColumn = []
+    df = df.reset_index()  # make sure indexes pair with number of rows
+    count = (df['FreeCash'] == 0).sum()
+    print('ZEROOOOOOOOOOO', count)
+    for index, row in df.iterrows():
+        FreeCashToAmountColumn.append(row['FreeCash'] / row['AppliedAmount'])
+    df['FreeCashToAmountColumn'] = FreeCashToAmountColumn
+    return df 
+
+def addFreeCashToMonthlyPaymentColumn(df): 
+    print('...Adding FreeCashToMonthlyPaymentColumn column')
+    FreeCashToMonthlyPaymentColumn = []
+    df = df.reset_index()  # make sure indexes pair with number of rows
+    for index, row in df.iterrows():
+        FreeCashToMonthlyPaymentColumn.append(row['FreeCash'] / row['MonthlyPayment'])
+    df['FreeCashToMonthlyPaymentColumn'] = FreeCashToMonthlyPaymentColumn
     return df 
 
 
@@ -121,6 +128,9 @@ def removeIncompleteLines(df):
     df = df[df["LanguageCode"] != 13]
     df = df[df["LanguageCode"] != 7]
 
+    # removing Loans with Monthly payments equal to 0
+    df = df[df["MonthlyPayment"] != 0]
+
     # remove incomplete empty EmploymentStatus area lines
     df['EmploymentStatus'] = df['EmploymentStatus'].fillna('empty')
     df = df[df["EmploymentStatus"] != 0]
@@ -169,6 +179,7 @@ def getDataForCorrelation(df):
     printValueDistribution(df, 'WorkExperience')
     df_copy = df.copy(deep=True)
     return df_copy[inputCols]
+
 
 
 
@@ -394,7 +405,9 @@ def printNumberOfUniqueValues(df):
         print("{}\t: {}".format(column, len(np.unique(df[column]))))
 
 
-### PLOT NOMINAL DISTRIBUTIONS #########################
+
+
+### PLOTS % EXPORTS #####################################
 
 def PlotHeatMap(df):
     print('...plotting Heatmap')
@@ -416,9 +429,6 @@ def plotDefaultDistribution(df):
     plt.legend()
     plt.savefig('DEFAULT_Distribution.png')
 
-
-### PLOT NUMERICAL VALUES ##############################
-
 def plotAgeDistribution(df):
     print('...Plotting Age Distribution')
     plt.figure(figsize=(10,8))
@@ -432,12 +442,11 @@ def plotAgeDistribution(df):
     plt.legend()
     plt.savefig('Age_Distribution.png')
 
-
-### EXPORTS ############################################
-
 def exportAsCSV(df, name):
     print('...exporting csv')
     df.head(2000).to_csv(name + '.csv')
+
+
 
 
 
@@ -682,7 +691,9 @@ print('   ', df_reduced.shape)
 df_reduced = removeIncompleteLines(df_reduced)
 print('   ', df_reduced.shape)
 
-df_reduced = addAmountToFreeCashColumn(df_reduced)
+df_reduced = addFreeCashToAmountColumn(df_reduced)
+df_reduced = addFreeCashToMonthlyPaymentColumn(df_reduced)
+
 
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
