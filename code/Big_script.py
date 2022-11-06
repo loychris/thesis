@@ -14,36 +14,77 @@ from sklearn.metrics import roc_curve, roc_auc_score, accuracy_score, confusion_
 
 # der gesamt 
 
-TRAIN_TEST_RATIO = 0.3
-NUMBER_OF_TREES = 100
+TRAIN_TEST_RATIO = 0.1 # 0.05 0.1 0.2 0.3 
+NUMBER_OF_TREES = 100 # 100 500 1000 10000
 RANDOM_STATE = 22
+NUMBER_OF_LEAVES = 31 # 10 20 30 40 50 
+MAX_TREE_DEPTH = 5 # 3 5 7 
 
+# preventin machine to crash 
 pd.set_option('display.max_columns', None)  # or 1000
 pd.set_option('display.max_rows', None)  # or 1000
 
 # load loan data
 df = pd.read_csv('LoanData.csv', low_memory=False)
-print(df.shape)
 df_clean = df.copy(deep=True)
-
 
 
 ### CLEAN DATA ##########################################
 
-def addDefaultColumn(): 
+def addDefaultColumn(df): 
     print('...Adding DEFAULT column (default: 1, in time: 0)')
-    printValueDistribution(df, 'Status')
     DEFAULT = []
     for row in df['Status']:
         if row == 'Late' : DEFAULT.append(1)
         else: DEFAULT.append(0)
     
     df['DEFAULT'] = DEFAULT
+    return df 
+
+def addAmountToFreeCashColumn(df): 
+    print('...Adding AmountToFreeCashColumn column')
+    AmountToFreeCashColumn = []
+    i = 0
+    for row in df['FreeCash']:
+        if i < 100:
+            print(row)
+        #if row == 'Late' : AmountToFreeCashColumn.append(1)
+        #else: AmountToFreeCashColumn.append(0)
     
-def removeOngoingLoans():
+    # df['AmountToFreeCashColumn'] = AmountToFreeCashColumn
+    return df 
+
+
+def removeOngoingLoans(df):
     print('...removing Loans that are still active')
-    global df_clean
-    df_clean = df[df['Status'] != 'Current']
+    df = df[df['Status'] != 'Current']
+    return df
+
+def getReducedDataset(df):
+    print('...Reducing columns to relevant inputs')
+    inputCols = [
+        # APPLICATION
+        'VerificationType', 
+        # LOAN
+        'AppliedAmount',
+        # DEMOGRAPHIC
+        'LanguageCode','Age','Gender','Country','LoanDuration', 'MonthlyPayment',  'UseOfLoan', 'Education', 
+        'MaritalStatus', 'NrOfDependants', 'EmploymentStatus', 'EmploymentDurationCurrentEmployer', 'WorkExperience', 
+        'OccupationArea', 'HomeOwnershipType', 
+        # INCOME 
+        'IncomeFromPrincipalEmployer','IncomeFromPension', 'IncomeFromFamilyAllowance', 'IncomeFromSocialWelfare', 
+        'IncomeFromLeavePay', 'IncomeFromChildSupport', 'IncomeOther', 'IncomeTotal', 
+        # LIABILITIES
+        'ExistingLiabilities', 'LiabilitiesTotal', 'RefinanceLiabilities', 
+        'DebtToIncome', 'FreeCash', 
+        # PREV LOANS
+        'NewCreditCustomer', 'NoOfPreviousLoansBeforeLoan', 'AmountOfPreviousLoansBeforeLoan', 
+        'PreviousRepaymentsBeforeLoan', 'PreviousEarlyRepaymentsBefoleLoan', 'PreviousEarlyRepaymentsCountBeforeLoan',
+
+        'DEFAULT'
+    ]
+    return df[inputCols]
+
 
 def removeIncompleteLines(df):
     print('...Removing incomplete lines')
@@ -92,38 +133,12 @@ def removeIncompleteLines(df):
 
 def removeBusinessLoans(df):
     # remove loans for businesses which are no longer supported since 2012
+    print('... removing business loans')
     df = df[df["UseOfLoan"] != 102]
     df = df[df["UseOfLoan"] != 110]
     df = df[df["UseOfLoan"] != 108]
     return df
         
-def getReducedDataset():
-    print('...Reducing columns to relevant inputs')
-    global df_clean 
-    inputCols = [
-        # APPLICATION
-        'VerificationType', 
-        # LOAN
-        'AppliedAmount',
-        # DEMOGRAPHIC
-        'LanguageCode','Age','Gender','Country','LoanDuration', 'MonthlyPayment',  'UseOfLoan', 'Education', 
-        'MaritalStatus', 'NrOfDependants', 'EmploymentStatus', 'EmploymentDurationCurrentEmployer', 'WorkExperience', 
-        'OccupationArea', 'HomeOwnershipType', 
-        # INCOME 
-        'IncomeFromPrincipalEmployer','IncomeFromPension', 'IncomeFromFamilyAllowance', 'IncomeFromSocialWelfare', 
-        'IncomeFromLeavePay', 'IncomeFromChildSupport', 'IncomeOther', 'IncomeTotal', 
-        # LIABILITIES
-        'ExistingLiabilities', 'LiabilitiesTotal', 'RefinanceLiabilities', 
-        'DebtToIncome', 'FreeCash', 
-        # PREV LOANS
-        'NewCreditCustomer', 'NoOfPreviousLoansBeforeLoan', 'AmountOfPreviousLoansBeforeLoan', 
-        'PreviousRepaymentsBeforeLoan', 'PreviousEarlyRepaymentsBefoleLoan', 'PreviousEarlyRepaymentsCountBeforeLoan',
-
-        'DEFAULT'
-    ]
-    df_reduced = df_clean.copy(deep=True)
-    return df_reduced[inputCols]
-
 def getDataForCorrelation(df): 
     print("...Reducing DataSet to numeric columns")
     inputCols = [
@@ -271,16 +286,16 @@ def translateOccupationArea(df):
 def translateHomeOwnershipType(df): 
     map_dict = {
         -1:'No Home Ownership Type Provided',
-        0:'Homeless',
-        1:'Owner',
-        2:'Living with Parents',
-        3:'Tenant, Pre-furnished Property',
-        4:'Tenant, unfurnished Property',
-        5:'Council House',
-        6:'Joint Tenant',
-        7:'Joint Twnership',
-        8:'Mortgage',
-        9:'Owner with Encumbrance',
+        0: 'Homeless',
+        1: 'Owner',
+        2: 'Living with Parents',
+        3: 'Tenant, Pre-furnished Property',
+        4: 'Tenant, unfurnished Property',
+        5: 'Council House',
+        6: 'Joint Tenant',
+        7: 'Joint Ownership',
+        8: 'Mortgage',
+        9: 'Owner with Encumbrance',
         10:'Other'
     }
     df["HomeOwnershipType"] = df["HomeOwnershipType"].map(map_dict)
@@ -387,16 +402,25 @@ def PlotHeatMap(df):
     sns.heatmap(df.corr(), annot=True, cmap='RdBu', fmt='.2f')
     plt.show()
 
-def printIsNullCounts(df):
-    print('...filling monthly payment')
-    print(df.isnull().sum())
+def plotDefaultDistribution(df):
+    print('...plotting DEFAULT distribution')
+    class_dist = df['DEFAULT'].value_counts()
+    plt.figure(figsize=(12,3))
+    plt.title('Class Distribution')
+    plt.barh(class_dist.index, class_dist.values)
+    plt.yticks([0, 1])
 
+    for i, value in enumerate(class_dist.values):
+        plt.text(value-2000, i, str(value), fontsize=12, color='white',
+                horizontalalignment='right', verticalalignment='center')
+    plt.legend()
+    plt.savefig('DEFAULT_Distribution.png')
 
 
 ### PLOT NUMERICAL VALUES ##############################
 
 def plotAgeDistribution(df):
-    print('...Plotting age distribution')
+    print('...Plotting Age Distribution')
     plt.figure(figsize=(10,8))
     plt.title('Age Distribution')
     plt.xlabel('Age')
@@ -406,8 +430,7 @@ def plotAgeDistribution(df):
     plt.axvline(x=df[df['DEFAULT']==0]['Age'].mean(),color='green', ls='--')
     plt.grid()
     plt.legend()
-    plt.show()
-
+    plt.savefig('Age_Distribution.png')
 
 
 ### EXPORTS ############################################
@@ -580,7 +603,9 @@ def trainModel(X_train_scaled, X_test_scaled, y_train, y_test):
     model = lgb.LGBMClassifier(
         n_estimators=NUMBER_OF_TREES, 
         class_weight='balanced', 
-        random_state=RANDOM_STATE
+        random_state=RANDOM_STATE,
+        num_leaves=NUMBER_OF_LEAVES,
+        max_depth=MAX_TREE_DEPTH, 
 
     )
 
@@ -606,14 +631,15 @@ def testModel(model, X_train_scaled, X_test_scaled, y_train, y_test):
     pred_test = model.predict(X_test_scaled)
 
 
-    print('##### train #######')
-    print(pred_train)
-    print(y_train)
-    print(accuracy_score(y_train, pred_train))
-    print('##### test ########')
-    print(pred_test)
-    print(y_test)
-    print(accuracy_score(y_test, pred_test))
+    print("ACCURACY TRAIN: ", accuracy_score(y_train, pred_train))
+    print("ACCURACY TEST: ", accuracy_score(y_test, pred_test))
+
+    cm = confusion_matrix(y_test, )
+    # print('Confusion matrix\n\n', cm)
+    # print('\nTrue Positives(TP) = ', cm[0,0])
+    # print('\nTrue Negatives(TN) = ', cm[1,1])
+    # print('\nFalse Positives(FP) = ', cm[0,1])
+    # print('\nFalse Negatives(FN) = ', cm[1,0])
 
     # Create train and test curve
     fpr_train, tpr_train, thresh_train = roc_curve(y_train, prob_train[:,1])
@@ -639,14 +665,25 @@ def testModel(model, X_train_scaled, X_test_scaled, y_train, y_test):
 ### EXECUTE CODE ########################################
 
 # PREPARATION & CLEANUP
-addDefaultColumn()
-removeOngoingLoans()
+ 
+print('   ', df.shape)
+df_reduced = addDefaultColumn(df)
+print('   ', df_reduced.shape)
+df_reduced = removeOngoingLoans(df_reduced)
+print('   ', df_reduced.shape)
+df_reduced = getReducedDataset(df_reduced)
+print('   ', df_reduced.shape)
 
 
 # REMOVE UNUSABLE DATA
-df_reduced = getReducedDataset()
-df_reduced = removeIncompleteLines(df_reduced)
 df_reduced = removeBusinessLoans(df_reduced)
+print('   ', df_reduced.shape)
+
+df_reduced = removeIncompleteLines(df_reduced)
+print('   ', df_reduced.shape)
+
+df_reduced = addAmountToFreeCashColumn(df_reduced)
+
 df_reduced = prepareNrOfDependants(df_reduced)
 df_reduced = prepareNewCreditCustomer(df_reduced)
 
@@ -661,8 +698,13 @@ df_reduced = translateOccupationArea(df_reduced)
 df_reduced = translateHomeOwnershipType(df_reduced)
 df_reduced = translateGender(df_reduced)
 
+exportAsCSV(df_reduced.head(1000), 'LoanData_after_cleanup')
+
+
+
 # PLOT DISTRIBUTIONS 
-# plotAgeDistribution(df_reduced)
+plotAgeDistribution(df_reduced)
+plotDefaultDistribution(df_reduced)
 # printDistribution(df, 'LanguageCode')
 # printValueDistribution(df, 'LanguageCode')
 
@@ -681,6 +723,10 @@ df_reduced = oheEmploymentStatus(df_reduced)
 df_reduced = oheOccupationArea(df_reduced)
 df_reduced = oheHomeOwnershipType(df_reduced)
 df_reduced = oheGender(df_reduced)
+
+print('   ', df_reduced.shape)
+exportAsCSV(df_reduced.head(1000), 'LoanData_after_encoding')
+
 
 # FILL INCOMPLETE CELLS WITH MEAN OF COLUMNS
 fillMonthlyPayments(df_reduced)
@@ -707,6 +753,12 @@ fillPreviousEarlyRepaymentsBefoleLoan(df_reduced)
 
 # TEST TRAIN SPLIT 
 X_train, X_test, y_train, y_test = getTrainRestSplit(df_reduced) 
+# print('x_train, X_test, y_train, y_test')
+# print(X_train)
+# print(X_test)
+# print(y_train)
+# print(y_test)
+
 
 # NORMALISATION
 X_train_scaled, X_test_scaled = normalizeData(X_train, X_test)
